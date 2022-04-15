@@ -1,0 +1,15 @@
+{
+  "name": "ddjs-runtypes",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "mdx-deck slides/deck.mdx"
+  },
+  "author": "Erik Soehnel",
+  "license": "ISC",
+  "dependencies": {
+    "mdx-deck": "^4.1.1"
+  }
+}

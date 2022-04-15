@@ -1,0 +1,339 @@
+import { book, highlight } from '@mdx-deck/themes'
+import letsfindout from './lets-find-out.jpg'
+
+export const theme = {
+  ...book,
+  ...highlight
+}
+
+<div style={{display: 'flex'}}>
+
+<div style={{width: '30%'}}>
+
+# Runtypes
+
+## What Do They Know?
+## Do They Know Things??
+## Let's Find Out!
+
+</div>
+
+<img src={letsfindout} style={{width: '60%', height:'auto'}} />
+</div>
+
+---
+
+import ltm1095 from './ltm-1095-5-1.png'
+import ltm1450 from './ltm-1450-8-1.png'
+import ltm1030 from './ltm-1030-2-1.png'
+
+# App ohne Typescript
+
+<img style={{width: 'auto', height: '5rem', marginLeft: '0.5rem'}} src={ltm1095} />
+<img style={{width: 'auto', height: '5rem', marginLeft: '0.5rem'}} src={ltm1450} />
+<img style={{width: 'auto', height: '5rem', marginLeft: '0.5rem'}} src={ltm1030} />
+
+```ts
+const response = await fetch('shitty-ruby-backend.localhost/cranes')
+const cranes = await response.json()
+
+{
+   model: "LTM 1095-5.1"
+   length: 14_090,
+   height: 4_000
+}
+```
+
+<Notes>
+
+- datenbank mit mobilkranen
+- user muss sich einen aussuchen für sein projekt
+- ganz normale rest api
+
+</Notes>
+
+---
+
+# App mit Typescript
+
+<img style={{width: 'auto', height: '5rem', marginLeft: '0.5rem'}} src={ltm1095} />
+<img style={{width: 'auto', height: '5rem', marginLeft: '0.5rem'}} src={ltm1450} />
+<img style={{width: 'auto', height: '5rem', marginLeft: '0.5rem'}} src={ltm1030} />
+
+```ts
+interface Crane {
+   model: string
+   length: number,
+   height: number
+}
+
+const response = await fetch('shitty-ruby-backend.localhost/cranes')
+const cranes: Crane[] = await response.json()
+```
+
+jetzt ists safe 🤗 oder?
+
+<Notes>
+
+### machen wirs typesafe
+
+- interface adden
+- casten
+
+### frage ans publikum: alles okay oder?
+
+- shitty backend
+- typescript prüft gar nix die dumme sau
+
+https://www.typescriptlang.org/play?#code/JYOwLgpgTgZghgYwgAgMJTiFBvAUM5EOAWwgC5kBnMKUAc32QBsIQ6wALCkAV2ICNojDhGB0OYbn0FRcAX1y4EAexDVkUCJQAOqyuWSYAnsgC8yANrYipCgHImYYsgCMABgDMbgLQAmAHQudnIAuooA9OHIANaiIMgwEBwsUMiAvBuAtHuZmUp6YMgIGFiUFOiYEBYhZhpaumoQQA
+
+</Notes>
+
+---
+
+# Lösung
+
+```ts
+function craneRuntype(o: unknown): Crane {
+  if (typeof o !== 'object') { throw new Error() }
+  if (typeof o?.name !== 'string) { throw new Error() }
+  if (typeof o?.length !== 'number') { throw new Error() }
+  if (typeof o?.width !== 'number') { throw new Error() }
+
+  return o as Crane
+}
+
+const cranes = jsonResponse.map(o => craneRuntype(o))
+```
+
+Manuell die response prüfen 😑
+
+<Notes>
+
+### publikum: welche probleme hat das?
+
+- fehleranfällig: interface + code manuell syncen
+- langweilig
+- complex bei verschachtelung
+- !prototype injection! (wird am ende behandelt!)
+
+### im prinzip immer wieder dasselbe
+## EIN PATTERN
+
+mehrere mögliche Lösungen
+- JS: einfach ignorieren wird schon nix passieren
+- ULLE: codegen + metaprogrammierung
+- JAVA: als architekt buch über das pattern schreiben und von unterbezahlten devs abtippen lassen -> ab zum java meetup
+- TS: öffnet den generics werkzeugkasten
+
+</Notes>
+
+---
+
+# Schritt 1: Kombinatoren
+
+```ts
+function object(x: unknown): Record<string, unknown>
+function string(x: unknown): string
+function number(x: unknown): number
+
+function craneRuntype(x: unknown): Crane {
+  const o = object(x)
+
+  return {
+    name: string(o.name),
+    length: number(o.length),
+    width: number(o.width)
+  }
+}
+```
+
+Vereinfachen mit wiederverwendbaren Kombinatoren (`object`, `string`, `number`, ...)
+
+<Notes>
+
+- typisches 0815 refactoring
+
+### würded ihr das auch so machen?
+### gehts noch besser
+
+</Notes>
+
+---
+
+# Schritt 2: Tüpinferenz
+
+```ts
+function craneRuntype(x: unknown) {
+  const o = object(x)
+
+  return {
+    name: string(o.name),
+    length: number(o.length),
+    width: number(o.width)
+  }
+}
+
+type Crane = ReturnType<craneRuntype>
+```
+
+`interface Crane` eingespart <span style={{fontSize: '30px'}}>💰</span>
+
+<Notes>
+
+* DRY Dont Repeat Yourself - interface fällt weg typ kommt aus der validierfunktion
+* Fehlerquelle entsorgt (name: o.name)
+
+</Notes>
+
+---
+
+# Schritt 3: Mehr Mehr Mehr Kombinatoren 🔩 🔧 ⚙
+
+```ts
+function arrayOf<T>(f: (u: unknown) => T): (x: unknow) => T[]
+
+const craneResponseRuntype = arrayOf(craneRuntype)
+
+type CranesResponse = ReturnType<craneResponseRuntype>
+```
+
+`Crane[]` eingespart <span style={{fontSize: '30px'}}>💰💰</span>
+
+<Notes>
+
+* und so geht es immer weiter: record, optional, nullable, union, intersection
+* alles was typescript kann lässt sich so abbilden
+* nach einer weile hat man alles zusammen um eine runtype lib zu veröffentlichen
+
+</Notes>
+
+---
+
+# Libraries
+
+ajv, bueno, class-validator+class-transformer, computed-types, decoders, io-ts, jointz, json-decoder, marshal, @mojotech/json-type-validaton, myzod, purify-ts, rulr, runtypes, simple-runtypes, superstruct, suretype, toi, ts-interface-checker, ts-json-validator, tson, ts-utils, @typeofweb/schema, valita, yup, zod,
+
+<Step>
+
+* hardcore-funktional: io-ts
+* ecosystem: zod, pelotom/runtypes
+* OO: class-validator+class-transformer
+* schnell: valita
+* safe: simple-runtypes
+* validate vs. parse
+
+</Step>
+
+<Notes>
+
+* übelst viele
+* bisschen sortieren nach eigenschaften
+* leicht erlernbar
+* funktionieren alle nach demselben prinzip
+
+</Notes>
+
+---
+
+import quiz from './quiz.jpg'
+
+<img src={quiz} style={{width: 'auto', height: '80vh'}}/>
+
+<Notes>
+
+# frage ans publikum
+# lass sie mal reden
+- ist ja klar
+- ALLE
+
+</Notes>
+
+---
+
+import benchmarkOverview from './benchmark-overview.png'
+
+# Speed: Benchmark
+
+## github.com/moltar/typescript-runtime-type-benchmarks
+
+<img src={benchmarkOverview} style={{height: '60vh', width: 'auto'}} />
+
+<Notes>
+
+- schnell ist geil
+- kann man dann überall ohne verlust einbauen: api, db, config-file usw
+- benchmark ist nur stichprobe
+- es fehlt einiges: construction time, tagged unions, arrays, enums, code-size
+
+</Notes>
+
+---
+
+# Security: Strictness
+
+```ts
+{
+  "name": "ltm 1095-5.1",
+  "length": 14_000,
+  "height": 4_00
+  "premiumFeature": true, // 😱
+}
+```
+
+<Notes>
+
+- typescript: typ ist compatible mit `Crane`
+- nicht-stricte runtype libs lassen das zu!
+- angreifer kann properties reinschmuggeln
+
+</Notes>
+
+---
+
+# Security: Prototype Pollution
+
+```ts
+const validatedCrane = unsafeValidation(JSON.parse(`{
+  "name": "ltm 1095-5.1",
+  "length": 14_000,
+  "height": 4_00
+  "__proto__": {
+    "premiumFeature": true,
+  }
+}`))
+```
+
+```ts
+const myCrane = Object.assign({}, validatedCrane)
+
+myCrane.premiumFeature // true 😱😱😱
+```
+
+➡ parse, don't validate
+
+<Notes>
+
+- parse dont validate
+- einfaches keychecking reicht nicht aus :/
+- teure stricte checks nötig -> langsamer in den benchmarks
+- jede menge node libs haben solche fehler gehabt
+- nicht alle runtype libs können das
+- simple-runtypes plug - kann natürlich alles
+
+</Notes>
+
+---
+
+import outro from './outro.jpg'
+
+<img src={outro} style={{height: '80vh', width: 'auto'}} />
+
+<Notes>
+
+- danke danke danke
+- falls jemand einen job sucht wo er das gelernte anwenden möchte
+- für details mich fragen
+- simple-runtypes
+
+</Notes>
